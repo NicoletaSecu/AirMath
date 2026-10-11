@@ -80,6 +80,7 @@ button[hidden] { display: none; }
 
 /* Firma con link a GitHub */
 .credit { display: flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; font-size: 12.5px; color: var(--muted); text-decoration: none; transition: color .15s, background .15s; }
+.credit strong { color: var(--text); font-weight: 500; }
 .credit:hover { color: var(--text); background: rgba(255, 255, 255, .1); }
 .card .by { margin-top: 18px; font-size: 12.5px; text-align: center; }
 .card .by a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
@@ -97,6 +98,6 @@ header { z-index: 6; } /* sopra la schermata iniziale: la lingua si sceglie subi
   footer { justify-content: center; }
   header, footer { padding: 14px 16px; }
   .brand span { display: none; }
-  .credit span { display: none; }
+  .credit .who { display: none; }
   .credit { padding: 8px; }
 }

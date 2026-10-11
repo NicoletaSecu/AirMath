@@ -10,7 +10,7 @@ let result = null;       // esito dell'ultima analisi
 let staleOnDraw = false; // il prossimo tratto valido sostituisce il disegno precedente
 
 let hand = null;         // landmark in pixel
-let pen = null, pinching = false, pinchFrames = 0;
+let pen = null, brush = null, lastRaw = null, pinching = false, pinchFrames = 0, breakStart = 0;
 let fistStart = 0, fistLatch = false, fistProgress = 0, lastSeen = 0;
 let clearStart = 0, clearLatch = false, clearProgress = 0;
 let camOn = false, modelReady = false;
@@ -30,10 +30,20 @@ function oneEuro(minCut, beta) {
     }
   };
 }
-const SMOOTH_MIN = 1.2, SMOOTH_BETA = 0.004; // abbassa SMOOTH_MIN per un tratto ancora più stabile (ma più "in ritardo")
+const SMOOTH_MIN = 0.8, SMOOTH_BETA = 0.003; // abbassa SMOOTH_MIN per un tratto ancora più stabile (ma più "in ritardo")
+// "Pennello pigro": la punta è trascinata da un filo lungo LAZY pixel, quindi i tremolii
+// più piccolo di così non arrivano sul foglio. Più è lungo, più il tratto è fermo (e in ritardo).
+const LAZY = 10;
+const SMOOTH_PASSES = 14; // lisciatura finale di ogni tratto
 const fx = oneEuro(SMOOTH_MIN, SMOOTH_BETA), fy = oneEuro(SMOOTH_MIN, SMOOTH_BETA);
 
 const FIST_MS = 600, CLEAR_MS = 800, PINCH_ON = 0.22, PINCH_OFF = 0.34, MIN_PTS = 6;
+// Le stesse soglie misurate in 3D (distanza reale tra le punte, non quella vista dalla webcam):
+// evitano il falso pizzico quando pollice e indice sono solo allineati uno dietro l'altro.
+const PINCH_ON_3D = 0.38, PINCH_OFF_3D = 0.58;
+// Un pizzico "perso" per meno di RELEASE_MS (un dito che passa davanti, un errore del tracking)
+// non interrompe il tratto.
+const RELEASE_MS = 180;
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -89,7 +99,7 @@ function resampleOne(s, step) {
 function smoothStroke(s) {
   if (s.length < 3) return s;
   let p = resampleOne(s, 4);
-  for (let k = 0; k < 8; k++)
+  for (let k = 0; k < SMOOTH_PASSES; k++)
     p = p.map((q, i) => i === 0 || i === p.length - 1 ? q : { x: (p[i - 1].x + 2 * q.x + p[i + 1].x) / 4, y: (p[i - 1].y + 2 * q.y + p[i + 1].y) / 4 });
   return p;
 }
@@ -101,10 +111,18 @@ function runAnalysis() {
   setResult(r || { empty: true, msg: t('tooFew') });
 }
 
+// Equazione mostrata: con i numeri arrotondati (se disponibile e richiesto) oppure esatti
+let approxOn = true;
+try { approxOn = localStorage.getItem('approx') !== '0'; } catch (e) {}
+const view = r => r && approxOn && r.approx ? r.approx : r;
+
 function setResult(r) {
   result = r;
   const box = $('result');
   if (!r) return box.classList.remove('show');
+  $('btnApprox').hidden = !r.approx;
+  $('btnApprox').textContent = t(approxOn ? 'exactBtn' : 'approxBtn');
+  const v = view(r);
   box.classList.toggle('empty', !!r.empty);
   box.classList.toggle('long', !!r.free);
   $('btnCopy').hidden = !!r.empty;
@@ -115,9 +133,9 @@ function setResult(r) {
     $('resEq').textContent = r.msg;
     $('resMeta').innerHTML = '';
   } else {
-    $('resKind').textContent = r.name;
-    $('resEq').innerHTML = r.html || r.eq.replace(/[xy]/g, '<i>$&</i>');
-    $('resMeta').innerHTML = [...r.details, [t('fit'), Math.round(r.quality * 100) + '%']]
+    $('resKind').textContent = v.name;
+    $('resEq').innerHTML = v.html || v.eq.replace(/[xy]/g, '<i>$&</i>');
+    $('resMeta').innerHTML = [...v.details, [t('fit'), Math.round(v.quality * 100) + '%']]
       .map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('');
   }
   box.classList.add('show');
@@ -151,7 +169,7 @@ function onResults(res) {
   const lm = res.multiHandLandmarks && res.multiHandLandmarks[0];
   if (!lm) {
     hand = null; pinchFrames = 0; fistStart = 0; fistProgress = 0; clearStart = 0; clearProgress = 0;
-    if (now - lastSeen > 250) { pinching = false; endStroke(true); pen = null; fx.reset(); fy.reset(); }
+    if (now - lastSeen > 250) { pinching = false; breakStart = 0; endStroke(true); pen = null; lastRaw = null; fx.reset(); fy.reset(); }
     return setStatus('idle', 'stShow');
   }
   lastSeen = now;
@@ -163,16 +181,39 @@ function onResults(res) {
 
   const d = (a, b) => Math.hypot(hand[a].x - hand[b].x, hand[a].y - hand[b].y);
   const size = Math.max(d(0, 9), d(5, 17) * 1.3) || 1;
-  const curled = (tip, k) => d(tip, 0) < d(tip - 3, 0) * k; // punta più vicina al polso della nocca
+  // Distanze 3D: MediaPipe stima anche la profondità, così i gesti non dipendono da come è girata la mano
+  const wl = res.multiHandWorldLandmarks && res.multiHandWorldLandmarks[0];
+  const d3 = wl ? (a, b) => Math.hypot(wl[a].x - wl[b].x, wl[a].y - wl[b].y, wl[a].z - wl[b].z) : d;
+  const size3 = wl ? (d3(0, 9) || 1) : size;
+  const curled = (tip, k) => d3(tip, 0) < d3(tip - 3, 0) * k; // punta più vicina al polso della nocca
+  const up = tip => d3(tip, 0) > d3(tip - 2, 0) * 1.15;
+  const ratio = d(4, 8) / size, ratio3 = d3(4, 8) / size3;
   const fist = curled(8, 1.0) && curled(12, 1.1) && curled(16, 1.1) && curled(20, 1.1);
-  const ratio = d(4, 8) / size;
+  // ✌️ indice e medio tesi, anulare e mignolo chiusi
+  const peace = up(8) && up(12) && curled(16, 1.1) && curled(20, 1.1) && ratio > 0.45;
 
-  const tip = hand[8];
-  pen = { x: fx.f(tip.x, now), y: fy.f(tip.y, now) };
+  // La penna è il punto in cui pollice e indice si toccano: più stabile della sola punta dell'indice,
+  // e non salta se per un attimo il tracking confonde l'indice con il medio.
+  const raw = { x: (hand[4].x + hand[8].x) / 2, y: (hand[4].y + hand[8].y) / 2 };
+  const jump = pinching && lastRaw && Math.hypot(raw.x - lastRaw.x, raw.y - lastRaw.y) > 0.9 * size; // salto impossibile
+  if (!jump) { pen = { x: fx.f(raw.x, now), y: fy.f(raw.y, now) }; lastRaw = raw; }
+
+  if (pinching) {
+    const held = !jump && !peace && !fist && ratio < PINCH_OFF && ratio3 < PINCH_OFF_3D;
+    if (held) {
+      breakStart = 0;
+      const dx = pen.x - brush.x, dy = pen.y - brush.y, dd = Math.hypot(dx, dy);
+      if (dd > LAZY) { brush.x += dx * (dd - LAZY) / dd; brush.y += dy * (dd - LAZY) / dd; }
+      extendStroke(brush.x, brush.y);
+      return setStatus('draw', 'stDraw');
+    }
+    if (!breakStart) breakStart = now;
+    if (now - breakStart < RELEASE_MS) return setStatus('draw', 'stDraw'); // forse è solo un disturbo: aspetta
+    pinching = false; pinchFrames = 0; breakStart = 0; endStroke(true);
+  }
 
   if (fist) {
-    clearStart = 0; clearProgress = 0;
-    pinching = false; pinchFrames = 0; endStroke(true);
+    clearStart = 0; clearProgress = 0; pinchFrames = 0;
     if (!fistLatch) {
       if (!fistStart) fistStart = now;
       fistProgress = Math.min(1, (now - fistStart) / FIST_MS);
@@ -182,11 +223,9 @@ function onResults(res) {
   }
   fistStart = 0; fistLatch = false; fistProgress = 0;
 
-  // ✌️ indice e medio tesi, anulare e mignolo chiusi: tenuto un istante cancella tutto
-  const up = tip => d(tip, 0) > d(tip - 2, 0) * 1.15;
-  const peace = up(8) && up(12) && curled(16, 1.1) && curled(20, 1.1) && ratio > 0.45;
+  // ✌️ tenuto un istante cancella tutto
   if (peace && (clearLatch || strokes.length || current || result)) {
-    pinching = false; pinchFrames = 0; endStroke(true);
+    pinchFrames = 0;
     if (!clearLatch) {
       if (!clearStart) clearStart = now;
       clearProgress = Math.min(1, (now - clearStart) / CLEAR_MS);
@@ -197,12 +236,9 @@ function onResults(res) {
   clearStart = 0; clearProgress = 0;
   if (!peace) clearLatch = false;
 
-  if (!pinching) {
-    if (ratio < PINCH_ON) { if (++pinchFrames >= 2) { pinching = true; beginStroke(pen.x, pen.y); } }
-    else pinchFrames = 0;
-  } else if (ratio > PINCH_OFF) { pinching = false; pinchFrames = 0; endStroke(true); }
-
-  if (pinching) extendStroke(pen.x, pen.y);
+  if (ratio < PINCH_ON && ratio3 < PINCH_ON_3D) {
+    if (++pinchFrames >= 2) { pinching = true; breakStart = 0; brush = { ...pen }; beginStroke(brush.x, brush.y); }
+  } else pinchFrames = 0;
   setStatus(pinching ? 'draw' : 'ready', pinching ? 'stDraw' : 'stReady');
 }
 
@@ -243,9 +279,14 @@ canvas.addEventListener('pointercancel', pointerEnd);
 $('btnAnalyze').onclick = runAnalysis;
 $('btnClear').onclick = clearAll;
 $('btnAlt').onclick = () => { if (result && result.alt) setResult(result.alt); };
+$('btnApprox').onclick = () => {
+  approxOn = !approxOn;
+  try { localStorage.setItem('approx', approxOn ? '1' : '0'); } catch (e) {}
+  setResult(result);
+};
 $('btnCopy').onclick = () => {
   if (!result || result.empty) return;
-  navigator.clipboard?.writeText(result.eq).then(() => {
+  navigator.clipboard?.writeText(view(result).eq).then(() => {
     $('btnCopy').textContent = t('copied');
     setTimeout(() => $('btnCopy').textContent = t('copy'), 1200);
   }).catch(() => {});
@@ -317,7 +358,7 @@ function drawFit(sh) {
   } else {
     const pad = (sh.hi - sh.lo) * 0.2;
     for (let i = 0; i <= 300; i++) {
-      const u = sh.lo - pad + (sh.hi - sh.lo + 2 * pad) * i / 300;
+      const u = Math.min(sh.max ?? Infinity, Math.max(sh.min ?? -Infinity, sh.lo - pad + (sh.hi - sh.lo + 2 * pad) * i / 300));
       const v = sh.kind === 'fn' ? sh.f(u) : sh.kind === 'exp' ? sh.A * Math.exp(sh.k * u) + sh.C : sh.c.reduceRight((a, k) => a * u + k, 0);
       const [x, y] = sh.swap ? toPx(v, u) : toPx(u, v);
       i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
@@ -344,7 +385,8 @@ function drawHand() {
     ctx.strokeStyle = clearProgress ? '#ff7a7a' : '#ffb86b';
     ctx.beginPath(); ctx.arc(c.x, c.y, 30, -Math.PI / 2, -Math.PI / 2 + hold * Math.PI * 2); ctx.stroke();
   } else if (pen) {
-    ctx.beginPath(); ctx.arc(pen.x, pen.y, pinching ? 7 : 11, 0, Math.PI * 2);
+    const tipPt = pinching && brush ? brush : pen;
+    ctx.beginPath(); ctx.arc(tipPt.x, tipPt.y, pinching ? 7 : 11, 0, Math.PI * 2);
     if (pinching) { ctx.fillStyle = ACCENT; ctx.shadowColor = ACCENT; ctx.shadowBlur = 18; ctx.fill(); ctx.shadowBlur = 0; }
     else { ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2; ctx.stroke(); }
   }
@@ -358,7 +400,7 @@ function render() {
   const fitted = result && !result.empty;
   ctx.strokeStyle = fitted && !staleOnDraw ? 'rgba(255,255,255,.45)' : '#fff';
   if (!staleOnDraw || !current) strokes.forEach(drawStroke);
-  if (fitted && !current) drawFit(result.shape);
+  if (fitted && !current) drawFit(view(result).shape);
   if (current) { ctx.strokeStyle = '#fff'; drawStroke(smoothStroke(current)); }
   if (hand) drawHand();
   requestAnimationFrame(render);

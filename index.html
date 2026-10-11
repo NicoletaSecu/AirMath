@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Air Math — disegna nell'aria, ottieni l'equazione</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -16,7 +16,7 @@
 <header>
   <div class="brand"><i></i>Air Math <span data-i18n="tagline">· disegna, ottieni l'equazione</span></div>
   <div class="top-right">
-    <a class="credit glass" href="https://github.com/NicoletaSecu" target="_blank" rel="noopener" aria-label="Nicoleta Secu — GitHub"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span>Nicoleta Secu</span></a>
+    <a class="credit glass" href="https://github.com/NicoletaSecu" target="_blank" rel="noopener" aria-label="Nicoleta Secu — GitHub"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span class="who"><span data-i18n="madeBy">Creato da</span> <strong>Nicoleta Secu</strong></span></a>
     <div class="lang glass"><button data-lang="it">IT</button><button data-lang="en">EN</button></div>
     <div class="pill glass" id="status" data-state="idle"><b></b><span id="statusText">In attesa</span></div>
   </div>
@@ -26,7 +26,7 @@
   <div class="kind" id="resKind"></div>
   <div class="eq" id="resEq"></div>
   <div class="meta" id="resMeta"></div>
-  <div class="tools"><button class="glass mini" id="btnAlt" hidden></button><button class="glass mini" id="btnCopy" data-i18n="copy">Copia</button></div>
+  <div class="tools"><button class="glass mini" id="btnAlt" hidden></button><button class="glass mini" id="btnApprox" hidden></button><button class="glass mini" id="btnCopy" data-i18n="copy">Copia</button></div>
 </section>
 
 <footer>
@@ -61,8 +61,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
-<script src="lang.js"></script>
-<script src="fit.js"></script>
-<script src="app.js"></script>
+<script src="js/lang.js"></script>
+<script src="js/fit.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
