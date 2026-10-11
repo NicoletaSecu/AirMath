@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Air Math — disegna nell'aria, ottieni l'equazione</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<video id="video" playsinline muted></video>
+<canvas id="stage"></canvas>
+
+<header>
+  <div class="brand"><i></i>Air Math <span data-i18n="tagline">· disegna, ottieni l'equazione</span></div>
+  <div class="top-right">
+    <div class="lang glass"><button data-lang="it">IT</button><button data-lang="en">EN</button></div>
+    <div class="pill glass" id="status" data-state="idle"><b></b><span id="statusText">In attesa</span></div>
+  </div>
+</header>
+
+<section id="result" class="glass" aria-live="polite">
+  <div class="kind" id="resKind"></div>
+  <div class="eq" id="resEq"></div>
+  <div class="meta" id="resMeta"></div>
+  <div class="tools"><button class="glass mini" id="btnAlt" hidden></button><button class="glass mini" id="btnCopy" data-i18n="copy">Copia</button></div>
+</section>
+
+<footer>
+  <div class="hints glass">
+    <div><em>🤏</em><span data-i18n="hintDraw"><strong>Pizzica</strong> per disegnare</span></div>
+    <div><em>✊</em><span data-i18n="hintAnalyze"><strong>Pugno chiuso</strong> per analizzare</span></div>
+    <div><em>✌️</em><span data-i18n="hintClear"><strong>Due dita</strong> per cancellare</span></div>
+  </div>
+  <div class="actions">
+    <button class="glass" id="btnClear"><span data-i18n="clear">Cancella</span><kbd>C</kbd></button>
+    <button class="primary" id="btnAnalyze"><span data-i18n="analyze">Analizza</span><kbd data-i18n="keySpace">Spazio</kbd></button>
+  </div>
+</footer>
+
+<div id="intro">
+  <div class="card glass">
+    <h1 data-i18n="introTitle">Disegna nell'aria,<br>leggi <span>f(x, y) = 0</span></h1>
+    <p data-i18n="introText">Traccia una figura con la mano davanti alla webcam: la pagina riconosce la curva e ne calcola l'equazione.</p>
+    <ol>
+      <li><em>🤏</em><span data-i18n="step1"><strong>Unisci indice e pollice</strong> per tracciare</span></li>
+      <li><em>✊</em><span data-i18n="step2"><strong>Chiudi il pugno</strong> un istante per analizzare</span></li>
+      <li><em>✌️</em><span data-i18n="stepClear"><strong>Indice e medio alzati</strong> per cancellare</span></li>
+      <li><em>🖱️</em><span data-i18n="step3">Oppure disegna con <strong>mouse o dito</strong></span></li>
+    </ol>
+    <div class="row">
+      <button class="primary" id="btnCam" data-i18n="camOn">Attiva webcam</button>
+      <button class="glass" id="btnMouse" data-i18n="mouseOnly">Solo mouse</button>
+    </div>
+    <div id="introErr"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="lang.js"></script>
+<script src="fit.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
