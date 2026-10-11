@@ -103,3 +103,7 @@ The main thresholds are constants at the top of the files and can be adjusted:
 - A logarithm or exponential of which only the flat part is drawn can't be told apart from an arc or a parabola: draw the steep part too.
 - A sine wave needs roughly one full period to be recognised; a single hump looks like a parabola.
 - Rotated parabolas, tangents and other functions have no dedicated model and are described as free curves.
+
+## Author
+
+Made by [Nicoleta Secu](https://github.com/NicoletaSecu).

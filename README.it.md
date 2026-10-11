@@ -103,3 +103,7 @@ Le soglie principali sono costanti in cima ai file e si possono ritoccare:
 - Un logaritmo o un esponenziale di cui si disegna solo la parte piatta è indistinguibile da un arco o da una parabola: conviene tracciare anche il tratto ripido.
 - Una sinusoide viene riconosciuta se se ne disegna circa un periodo intero; una sola gobba sembra una parabola.
 - Parabole ruotate, tangenti e altre funzioni non hanno un modello dedicato e vengono descritte come curve libere.
+
+## Autrice
+
+Creato da [Nicoleta Secu](https://github.com/NicoletaSecu).
